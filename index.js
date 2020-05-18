@@ -1,178 +1,92 @@
-/*const axios = require('axios')
-const express = require('express');
-const app = express();
-
-//get request 
-axios({
-  method:'get',
-  url: 'https://gist.githubusercontent.com/fg-uulm/666847dd7f11607fc2b6234c6d84d188/raw/2ca994ada633143903b10b2bf7ada3fd039cae35/mensa.json',
-  responseType:'json',
-})
-.then(res => console.log(res))
-.catch(err => console.error(err));
-
-//Params - REST-artig
-app.get('/user/:uid', function (req, res) {
-  res.send("User ID is set to " + req.params.uid);
-  //tu was
-});
-
-app.get('/mensa/:day', (req, res) => {
-  if (req.params.day === 'Di') {
-    res.send(data);
-  } else {
-    res.status(404).send('404');
-  }
-  // tu was
-});
-
-// Server starten
-app.listen(3000, function () {
-  console.log('Example app listening on port 3000!');
-});*/
-
-
-/*axios({
-  method: 'get',
-  url: 'https://gist.githubusercontent.com/fg-uulm/666847dd7f11607fc2b6234c6d84d188/raw/2ca994ada633143903b10b2bf7ada3fd039cae35/mensa.json',
-  responseType: 'json',
-})
-  .then((response) => {
-    const output = response.data;
-    // eslint-disable-next-line no-console
-    console.log(output);
-    data = output;
-  });
-
-
-// Params - REST-artig
-app.get('/user/:uid', (req, res) => {
-  res.send(`User ID is set to ${req.params.uid}`);
-  // tu was
-});
-
-app.get('/mensa/:day', (req, res) => {
-  if (req.params.day === 'Di') {
-    res.send(data);
-  } else {
-    res.status(404).send('404');
-  }
-  // tu was
-});
-
-// Server starten
-app.listen(3000, () => {
-  // eslint-disable-next-line no-console
-  console.log('Example app listening on port 3000!');
-});*/
-
-// Imports
-
-/*const axios = require('axios').default;
-const express = require('express');
-const cors = require("cors"); //Sicherheitsmechanismus Websitekommunikation (fügt geforderten header hinzu )
-// Library inits
-const app = express();
-
-let data = '';
-app.use(express.json())
-app.use(cors());
-let init = async () => {
-  let mensaAPI = await axios.get("https://gist.githubusercontent.com/fg-uulm/666847dd7f11607fc2b6234c6d84d188/raw/2ca994ada633143903b10b2bf7ada3fd039cae35/mensa.json")
-  console.log(mensaAPI);
-  data = mensaAPI.data;
-}
-
-app.get('/mensa/:day', (req, res) => {
-  if (req.params.day === 'Di') {
-    res.send(data);
-  } else {
-    res.status(404).send('404');
-  }
-  // tu was
-});
-
-
-app.post('/api/addData/', (req, res) => {
-  data.push(req.body);
-  console.log(req.body);
-  res.status(200).send();
-});
-
-// Server starten
-app.listen(3000, () => {
-  // eslint-disable-next-line no-console
-  console.log('Example app listening on port 3000!');
-});
-init();*/
-
-/* // Imports
-const axios = require('axios').default;
-const express = require('express');
-
-// Library inits
-const app = express();
-app.use(express.json());
-
-let data = '';
-const uri = 'https://gist.githubusercontent.com/fg-uulm/666847dd7f11607fc2b6234c6d84d188/raw/2ca994ada633143903b10b2bf7ada3fd039cae35/mensa.json';
-
-async function getData() {
-  await axios.get(uri)
-    .then((req) => {
-      data = req.data;
-    })
-    .catch(() => {
-      data = undefined;
-    });
-}
-getData();
-
-app.get('/mensa/:day', (req, res) => {
-  if (data !== undefined) {
-    if (req.params.day === 'Di') {
-      res.send(data);
-    } else {
-      res.status(404).send('Error: 404');
-    }
-  } else {
-    res.status(404).send('Error: 404');
-  }
-});
-
-app.post('/api/addData/', (req, res) => {
-  if (!JSON.stringify(data).includes(JSON.stringify(req.body))) {  //macht einen string daraus und mit includes kann man vergleichen (ist in data schon das drin was reingeschickt wird) 
-    data.push(req.body);
-    res.status(200).send();
-  } else {
-    res.status(418).send();
-  }
-});
-
-app.get('/api/getData/', (req, res) => {
-  res.status(200).send(data);
-});
-
-// Server starten
-app.listen(3000, () => {
-  // eslint-disable-next-line no-console
-  console.log('Example app listening on port 3000!');
-});*/
-
 
 // Imports
 const axios = require('axios').default;
 const express = require('express');
 const cors = require('cors');
-
-// Library inits
-const app = express();
-app.use(express.json());
-app.use(cors());
-
-let data = '';
+const mongo = require('mongodb');
 const uri = 'https://gist.githubusercontent.com/fg-uulm/666847dd7f11607fc2b6234c6d84d188/raw/2ca994ada633143903b10b2bf7ada3fd039cae35/mensa.json';
 
+// Library inits
+const app = express(); //execute the package express
+//the ability to create different routes 
+app.use(express.json()); //execute as middleware (check if user is authenticateted)
+app.use(cors());
+
+// MongoDB Client 
+async function initMongoDB() {
+  const client = await mongo.connect('mongodb://localhost:27017/mensa') //connect to MongoDb Server 
+    .catch((err) => { console.log(err); });
+  const db = await client.db();
+  return db;
+}
+//insert a document 
+async function updateDataBase(data) {
+  const db = await initMongoDB();
+  const addData = await db.collection('essen').insertOne(data, (err) => {
+    if (err) throw err;
+    console.log('Successfully updated!');
+  });
+  return addData;
+}
+
+async function getFromDataBase(keyword){
+  const db = await initMongoDB();
+  const getData = await db.collection('essen').find(keyword.toArray) //to Array ist das Ganze in einem Array gespeichert oder Objekt
+  return getData; 
+}
+
+/*app.post('/mensa/insert', async (req, res) => {
+  //Rausfinden ob Mahlzeit für gegebene Kategorie und Tag schon existiert
+  let findResult = updateDataBase.find(essen => (essen.category === req.body.category && essen.day === req.body.day))//Json Array - wenn wahr ist wird element zurückgegeben - funktioniert ähnlich wie eine for schleife geht alles 
+  //durch und prüft wie eine if abfrage die Elemente 
+  if(findResult == undefined) {
+    data.push(req.body);
+    res.status(200).send();
+  } else {
+    res.status(418).send();
+  }*/
+
+  app.post('/mensa/insert', (req, res) => { //route 
+    Object.keys(req.body).forEach(async (essen) => {
+      const findResults = await getFromDataBase(essen);
+      if (searchResults.length === 0) {
+        await updateDataBase(req.body[essen]);
+        res.status(200).send();
+      } else {
+        res.status(404).send('This meal already exists!');
+      }
+    });
+  });
+
+
+
+
+
+
+  /*if (!JSON.stringify(data).includes(JSON.stringify(req.body))) {
+    data.push(req.body);
+    res.status(200).send();
+  } else {
+    res.status(418).send();
+  }*/
+//});
+
+/*app.post('/form_data', (req,res,next)=>{
+  let findResult = postedData.find(essen => essen.category === req.body.category && essen.day === req.body.day)
+  if (findResult == undefined) {
+    postedData.push(req.body);;
+    res.status(200).send();
+  } else {
+    res.status(418).send();
+  }
+  // postedData.push(req.body)
+  // res.send("OK");
+});*/
+
+
+
+
+let data = '';
 async function getData() {
   await axios.get(uri)
     .then((req) => {
@@ -182,38 +96,23 @@ async function getData() {
       data = undefined;
     });
 }
-getData();
 
-app.get('/mensa/:day', (req, res) => {
-  if (data !== undefined) {
-    switch (req.params.day) {
-      case 'Di':
-        res.send(data);
-        break;
-      default:
-        res.status(404).send('Error: 404');
-        break;
-    }
+getData();
+app.get('/mensa/:day', async (req, res) => {
+  const findResults = await getFromDatabase({ day: req.params.day });
+  if (findResults.length > 0) {
+    res.send(findResults);
   } else {
     res.status(404).send('Error: 404');
   }
 });
 
-app.post('/api/addData/', (req, res) => {
-  if (!JSON.stringify(data).includes(JSON.stringify(req.body))) {  //macht einen string daraus und mit includes vergleicht man ob in data schon das drin ist was reingeschickt wird 
-    data.push(req.body);
-    res.status(200).send();
-  } else {
-    res.status(404).send();
-  }
-});
 
 app.get('/api/getData/', (req, res) => {
   // eslint-disable-next-line no-console
   console.log('Access');
   res.status(200).send(data);
 });
-
 // Server starten
 app.listen(3000, () => {
   // eslint-disable-next-line no-console

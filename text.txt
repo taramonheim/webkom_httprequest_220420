@@ -1,0 +1,5 @@
+mLab free Database 
+create file named routes with folder posts to only handle posts
+--> module.exports = routers (cleaner folder structure)
+const postRoutes = require('./router/posts');  
+app.use('/posts', postRoute);
