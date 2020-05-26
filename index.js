@@ -4,7 +4,6 @@ const express = require('express');
 const cors = require('cors');
 const mongo = require('mongodb').MongoClient;
 
-let data = '';
 const uri = 'https://gist.githubusercontent.com/fg-uulm/666847dd7f11607fc2b6234c6d84d188/raw/2ca994ada633143903b10b2bf7ada3fd039cae35/mensa.json';
 
 
@@ -17,7 +16,7 @@ app.use(cors());
 
 // mongodb client init
 async function initMongoDB() {
-  const client = await mongo.connect('mongodb://localhost:27017/mensa')
+  const client = await mongo.connect('mongodb://127.0.0.1:27017/mensa')
     .catch((err) => { console.log(err); });
   const db = await client.db();
   return db;
@@ -25,10 +24,11 @@ async function initMongoDB() {
 
 //insert a document
 async function updateDatabase(data){
-  const db = await initMongoDB(); //auf die Database zugreifen
+  const db = await initMongoDB();
   const insertresult = await db.collection('essen').insertOne(data, (err) => {
     if (err) throw err;
-    console.log('Document added');
+    // eslint-disable-next-line no-console
+    console.log('Added one document');
   });
   return insertresult;
 }
@@ -44,13 +44,14 @@ async function getFromDatabase(keyword) {
 async function getData() {
   await axios.get(uri)
     .then((req) => {
-      data = req.data;
+      // TODO: daten in mongo speichern und vorher checken ob schon drin ist, Tara!
+      // data = req.data;
     })
     .catch(() => {
-      data = undefined;
+      // data = undefined;
     });
 }
-getData();
+// getData(); // entkommentieren wenn fertig, Tara!
 
 // webserver endpoints
 app.get('/mensa/:day', async (req, res) => {
@@ -58,19 +59,30 @@ app.get('/mensa/:day', async (req, res) => {
   const db = await initMongoDB(); //functions from MongoDB
   let getresult = await db.collection('essen').find({ day : req.params.day}).toArray();
   console.log(getresult);
- /* const findResults = await getFromDatabase({ day: req.params.day });
-  if (findResults.length > 0) {
-    res.send(findResults);
+  if (getresult.length > 0) {
+    res.send(getresult);
   } else {
     res.status(404).send('Error: 404');  // funktioniert solange mein keine Mahlzeit schickt die schon im System ist 
-  }*/
+  }
 });
 
 app.post('/mensa/insert', async (req, res) => {
-    // TODO: Database search by keywords / identifiying key instead of comparing the complete object (independence)
-      const db = await initMongoDB();
-      let anObject = { "name":"pudding", "day" : "Do" }
-      let insertresult = await db.collection('essen').insertOne(anObject) //acess the information we are posting from body with req.body and post it to array "essen"
+  if (typeof req.body === 'object' && !Array.isArray(req.body)) {
+    const searchResults = await getFromDatabase(req.body);
+    if (searchResults.length === 0) {
+      await updateDatabase(req.body);
+      res.status(200).send();
+    } else {
+      res.status(409).send('Conflict: Double Entry');
+    }
+  } else {
+    res.status(409).send('Conflict: Illegal format (only json object allowed)');
+  }
+  // TODO: Database search by keywords / identifiying key instead of comparing the complete object (independence)
+    /*  
+    const db = await initMongoDB();
+      // let anObject = { "name":"pudding", "day" : "Do" }
+      let insertresult = await db.collection('essen').insertOne(req.body) //acess the information we are posting from body with req.body and post it to array "essen"
       const findResults = await getFromDatabase(req.body);
       if (findResults.length === 0 ) {
         res.status(200).send(insertresult);
@@ -85,9 +97,13 @@ app.post('/mensa/insert', async (req, res) => {
       }*/
     });
 
-app.get('/api/getData/', (req, res) => {
+app.get('/api/getFromDatabase/', async (req, res) => {
   console.log('Access');
-  res.status(200).send(data);
+  // TODO: get data from mongodb database and send it instead of data
+  // Tipp: https://www.npmjs.com/package/mongodb#find-all-documents
+  //const getData = await getFromDatabase(req.body);
+  const result = await getFromDatabase({});
+  res.status(200).send(result);
 });
 
 // Server starten
