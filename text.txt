@@ -2,4 +2,137 @@ mLab free Database
 create file named routes with folder posts to only handle posts
 --> module.exports = routers (cleaner folder structure)
 const postRoutes = require('./router/posts');  
-app.use('/posts', postRoute);
+app.use('/posts', postRoute); // now one can work in the posts folder
+package body parser - body of the json file --> const bodyParser = require('body-parser');
+ app.use(bodyParser.json()); 
+
+bei Post in service state serial auf json file und body bei POST um Daten zu posten 
+
+
+
+
+
+
+// erste Versuche mit data Variable
+
+ /*app.post('/mensa/insert', async (req, res) => {
+  //Rausfinden ob Mahlzeit für gegebene Kategorie und Tag schon existiert
+  let findResult = updateDataBase.find(essen => (essen.category === req.body.category && essen.day === req.body.day))//Json Array - wenn wahr ist wird element zurückgegeben - funktioniert ähnlich wie eine for schleife geht alles 
+  //durch und prüft wie eine if abfrage die Elemente 
+  if(findResult == undefined) {
+    data.push(req.body);
+    res.status(200).send();
+  } else {
+    res.status(418).send();
+  }*/
+
+
+  /*if (!JSON.stringify(data).includes(JSON.stringify(req.body))) {
+    data.push(req.body);
+    res.status(200).send();
+  } else {
+    res.status(418).send();
+  }*/
+//});
+
+/*app.post('/form_data', (req,res,next)=>{
+  let findResult = postedData.find(essen => essen.category === req.body.category && essen.day === req.body.day)
+  if (findResult == undefined) {
+    postedData.push(req.body);;
+    res.status(200).send();
+  } else {
+    res.status(418).send();
+  }
+  // postedData.push(req.body)
+  // res.send("OK");
+});*/
+
+//alte Version 
+
+// Imports
+const axios = require('axios').default;
+const express = require('express');
+const cors = require('cors');
+const mongo = require('mongodb').MongoClient;
+const uri = 'https://gist.githubusercontent.com/fg-uulm/666847dd7f11607fc2b6234c6d84d188/raw/2ca994ada633143903b10b2bf7ada3fd039cae35/mensa.json';
+//const fs = require('fs');
+
+// Library inits
+const app = express(); //execute the package express
+//the ability to create different routes 
+app.use(express.json()); //execute as middleware (check if user is authenticateted)
+app.use(cors());
+//let loadedData;
+
+// MongoDB Client 
+async function initMongoDB() {
+  const client = await mongo.connect('mongodb://localhost:27017/mensa') //connect to MongoDb Server 
+    .catch((err) => { console.log(err); });
+  const db = await client.db();
+  return db;
+}
+//insert a document 
+async function updateDataBase(data) {
+  const db = await initMongoDB(); //auf die Database zugreifen
+  const addData = await db.collection('essen').insertOne(data, (err) => { //in der essens collection
+    if (err) throw err;
+    console.log('Successfully updated!');
+  });
+  return addData;
+}
+
+async function getFromDataBase(keyword){
+  const db = await initMongoDB();
+  const getData = await db.collection('essen').find(keyword).toArray(); //to Array ist das Ganze in einem Array gespeichert oder Objekt (Ergebnis als Array zurückgeben)
+  return getData;    //kein leeres Array debbuging was kommt unten in Post Endpoint Funktion überhaupt zurück 
+}
+
+  app.post('/mensa/insert', (req, res) => { //route 
+
+    Object.keys(req.body).forEach(async (essen) => {
+      const findResults = await getFromDataBase(essen); 
+      let anObject = {"name":"pudding", "day" : "Do"}
+      if (findResults.length === 0) {
+        await updateDataBase(req.body[essen].insertOne(anObject)); //acess the information we are posting from body with req.body and post it to array "essen"
+      } else {
+        res.status(404).send('This meal already exists!');
+      }
+    });
+    res.status(200).send('oki'); // funktioniert solange mein keine Mahlzeit schickt die schon im System ist 
+  });
+  //let anObject = { "name":"pudding", "day" : "Do" }
+ // let insertresult = await db.collection('essen').insertOne(anObject);
+
+let data = '';
+async function getData() {
+  await axios.get(uri)
+    .then((req) => {
+      data = req.data;
+    }) 
+    .catch(() => {
+      data = undefined;
+    });
+}
+
+getData();
+app.get('/mensa/:day', async (req, res) => {
+  //Endpoint umbennen 
+  const findResults = await getFromDataBase({ day: req.params.day }); //functions from MongoDB
+  if (findResults.length > 0) {
+    res.send(findResults);
+  } else {
+    res.status(404).send('Error: 404');
+  }
+});
+
+
+app.get('/api/getData/', (req, res) => {
+  // eslint-disable-next-line no-console
+  console.log('Access');
+  res.status(200).send(data);
+});
+// Server starten
+app.listen(3000, () => {
+  // eslint-disable-next-line no-console
+  console.log('Example app listening on port 3000!');
+});
